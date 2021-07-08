@@ -588,7 +588,7 @@ class MainWindow(tk.Frame):
 
         self.rb2_x = tk.Checkbutton(self._nb_list2_frame, text='Логарифмическая абциса',
                                     variable=self.rb2_x_value, state='disabled',
-                                    command=lambda: self._change_x_log(self._ax2, self.rb2_y_value.get(),
+                                    command=lambda: self._change_x_log(self._ax2, self.rb2_x_value.get(),
                                                                        self._canvas2))
         self.rb2_y = tk.Checkbutton(self._nb_list2_frame, text='Логарифмическая ордината',
                                     variable=self.rb2_y_value, state='disabled',
