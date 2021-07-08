@@ -139,9 +139,10 @@ class ExtendedExperimentFrame(ttk.LabelFrame):
         self._main_figure, self._main_ax, self._canvas = kwargs['fig']
         self._data: Data = kwargs['data']
 
-        self['text'] = 'EXTENDED'
+        self['text'] = 'Расширенные начальные параметры'
 
         self._N_value: tk.StringVar = tk.StringVar(value=str(1))
+        self._sigma_dc_value: tk.StringVar = tk.StringVar(value=f"{1:.4E}")
 
         self._alpha_value: List[tk.StringVar] = [tk.StringVar(value=f'{1:.3E}') for _ in range(3)]
         self._beta_value: List[tk.StringVar] = [tk.StringVar(value=f'{1:.3E}') for _ in range(3)]
@@ -150,6 +151,7 @@ class ExtendedExperimentFrame(ttk.LabelFrame):
         self._epsilon_inf_value: List[tk.StringVar] = [tk.StringVar(value=str(12)) for _ in range(3)]
 
         self._N_entry: tk.Entry
+        self._sigma_dc_entry: tk.Entry
 
         self._alpha_entry: List[tk.Entry] = []
         self._beta_entry: List[tk.Entry] = []
@@ -157,10 +159,16 @@ class ExtendedExperimentFrame(ttk.LabelFrame):
         self._tau_nh_entry: List[tk.Entry] = []
         self._epsilon_inf_entry: List[tk.Entry] = []
 
-        self._start_calculate: tk.Button
+        self.start_calculate: tk.Button
 
         self._init_formula()
         self._init_entry()
+
+    def change_sigma_dc_values(self):
+        data = np.loadtxt(self._data.experimental_data, dtype=float)
+        x, y, yi = data[:, 0], data[:, 1], data[:, 2]
+        sigma_dc = y[np.argmin(x)]
+        self._sigma_dc_value.set(f"{sigma_dc:.4E}")
 
     def _init_entry(self):
         row = 2
@@ -226,10 +234,18 @@ class ExtendedExperimentFrame(ttk.LabelFrame):
             self._epsilon_inf_entry.append(tk.Entry(self, textvariable=self._epsilon_inf_value[i], width=10))
             self._epsilon_inf_entry[i].grid(row=row, column=1 + i, columnspan=1, padx=5, pady=2)
 
-        self._start_calculate = tk.Button(self, text='Отрисовать',
-                                          command=self._add_graphic,
-                                          width=16)
-        self._start_calculate.grid(row=row + 1, column=0, columnspan=2, padx=5, pady=2)
+        row += 1
+
+        _sigma_dc_label = tk.Label(self, text='σ_dc:')
+        _sigma_dc_label.grid(row=row, column=0, columnspan=1, pady=2)
+
+        self._sigma_dc_entry = tk.Entry(self, textvariable=self._sigma_dc_value, width=10)
+        self._sigma_dc_entry.grid(row=row, column=1, columnspan=1, padx=5, pady=2)
+
+        self.start_calculate = tk.Button(self, text='Отрисовать',
+                                         command=self._add_graphic,
+                                         width=16, state='disabled')
+        self.start_calculate.grid(row=row + 1, column=0, columnspan=2, padx=5, pady=2)
 
     def _add_graphic(self):
         if not self._data.experimental_data:
@@ -238,24 +254,26 @@ class ExtendedExperimentFrame(ttk.LabelFrame):
         data = np.loadtxt(self._data.experimental_data, dtype=float)
         x, y, yi = data[:, 0], data[:, 1], data[:, 2]
 
-        Y_base = yi / (x * 2 * np.pi * 8.85e-12 * 9e9)
-
-        sigma_dc = y[np.argmin(x)] / 9e9
-        epsilon_0 = 8.85e-12
         val = self._validation()
         if not val:
             return
+
+        Y_base = yi / (x * 2 * np.pi * 8.85e-12 * 9e9)
+
+        sigma_dc = val['sigma_dc'] / 9e9
+        epsilon_0 = 8.85e-12
 
         Y = np.zeros_like(x)
         Yi = np.zeros_like(x)
 
         for i in range(Y.shape[0]):
-            Y[i] += -(-1) * (sigma_dc / (epsilon_0 * x[i] * np.pi * 2)) ** val['N'][0]
+            Y[i] += -(-1) * (sigma_dc / (epsilon_0 * x[i] * np.pi * 2)) ** val['N']
 
         for i in range(Yi.shape[0]):
             for j in range(3):
-                Yi[i] += val['delta_epsilon'][j] / (1 + (-1 * x[i] * np.pi * 2 * val['tau_nh'][j]) ** val['alpha'][j]) ** \
-                        val['beta'][j] + val['eps_inf'][j]
+                Yi[i] += val['delta_epsilon'][j] / (
+                        1 + (-1 * x[i] * np.pi * 2 * val['tau_nh'][j]) ** val['alpha'][j]) ** \
+                         val['beta'][j] + val['eps_inf'][j]
 
         self._main_figure.clf()
         self._main_ax = self._main_figure.add_subplot(111)
@@ -283,7 +301,8 @@ class ExtendedExperimentFrame(ttk.LabelFrame):
         tau_nh = self._try_ex(self._tau_nh_value)
         eps_inf = self._try_ex(self._epsilon_inf_value)
 
-        out = {'N': self._try_ex([self._N_value]),
+        out = {'N': self._try_ex([self._N_value])[0],
+               'sigma_dc': self._try_ex([self._sigma_dc_value])[0],
                'alpha': alpha,
                'beta': beta,
                'delta_epsilon': delta_epsilon,
@@ -354,6 +373,7 @@ class MainWindow(tk.Frame):
         self._data = Data(**js)
 
         self._mw_frame: ttk.Frame
+        self._extended_frame: ExtendedExperimentFrame
 
         self._file_name_label: tk.Label
         self._poles_entry: tk.Entry
@@ -383,6 +403,20 @@ class MainWindow(tk.Frame):
         self._ax1: plt.Axes
         self._ax2: plt.Axes
         self._ax3: plt.Axes
+
+        self.rb1_x: tk.Checkbutton
+        self.rb1_y: tk.Checkbutton
+        self.rb2_x: tk.Checkbutton
+        self.rb2_y: tk.Checkbutton
+        self.rb3_x: tk.Checkbutton
+        self.rb3_y: tk.Checkbutton
+
+        self.rb1_x_value: tk.BooleanVar
+        self.rb1_y_value: tk.BooleanVar
+        self.rb2_x_value: tk.BooleanVar
+        self.rb2_y_value: tk.BooleanVar
+        self.rb3_x_value: tk.BooleanVar
+        self.rb3_y_value: tk.BooleanVar
 
         self._solutions_ids: List[int] = []
 
@@ -536,6 +570,47 @@ class MainWindow(tk.Frame):
 
         self._init_canvas()
 
+        self.rb1_x_value = tk.BooleanVar(self._nb_list1_frame, value=True)
+        self.rb1_y_value = tk.BooleanVar(self._nb_list1_frame, value=False)
+        self.rb2_x_value = tk.BooleanVar(self._nb_list2_frame, value=True)
+        self.rb2_y_value = tk.BooleanVar(self._nb_list2_frame, value=False)
+        self.rb3_x_value = tk.BooleanVar(self._nb_list3_frame, value=True)
+        self.rb3_y_value = tk.BooleanVar(self._nb_list3_frame, value=True)
+
+        self.rb1_x = tk.Checkbutton(self._nb_list1_frame, text='Логарифмическая абциса',
+                                    variable=self.rb1_x_value, state='disabled',
+                                    command=lambda: self._change_x_log(self._ax1, self.rb1_x_value.get(),
+                                                                       self._canvas1))
+        self.rb1_y = tk.Checkbutton(self._nb_list1_frame, text='Логарифмическая ордината',
+                                    variable=self.rb1_y_value, state='disabled',
+                                    command=lambda: self._change_y_log(self._ax1, self.rb1_y_value.get(),
+                                                                       self._canvas1))
+
+        self.rb2_x = tk.Checkbutton(self._nb_list2_frame, text='Логарифмическая абциса',
+                                    variable=self.rb2_x_value, state='disabled',
+                                    command=lambda: self._change_x_log(self._ax2, self.rb2_y_value.get(),
+                                                                       self._canvas2))
+        self.rb2_y = tk.Checkbutton(self._nb_list2_frame, text='Логарифмическая ордината',
+                                    variable=self.rb2_y_value, state='disabled',
+                                    command=lambda: self._change_y_log(self._ax2, self.rb2_y_value.get(),
+                                                                       self._canvas2))
+
+        self.rb3_x = tk.Checkbutton(self._nb_list3_frame, text='Логарифмическая абциса',
+                                    variable=self.rb3_x_value, state='disabled',
+                                    command=lambda: self._change_x_log(self._ax3, self.rb3_x_value.get(),
+                                                                       self._canvas3))
+        self.rb3_y = tk.Checkbutton(self._nb_list3_frame, text='Логарифмическая ордината',
+                                    variable=self.rb3_y_value, state='disabled',
+                                    command=lambda: self._change_y_log(self._ax3, self.rb3_y_value.get(),
+                                                                       self._canvas3))
+
+        self.rb1_x.pack(side='left')
+        self.rb1_y.pack(side='left')
+        self.rb2_x.pack(side='left')
+        self.rb2_y.pack(side='left')
+        self.rb3_x.pack(side='left')
+        self.rb3_y.pack(side='left')
+
     def _init_canvas(self):
         self._figure1 = plt.Figure(figsize=(12, 8), dpi=100)
         self._figure2 = plt.Figure(figsize=(12, 8), dpi=100)
@@ -567,9 +642,10 @@ class MainWindow(tk.Frame):
 
     def _init_extended_experiment_ui(self, row: int):
 
-        ex = ExtendedExperimentFrame(self._mw_frame, **{'fig': [self._figure1, self._ax1, self._canvas1],
-                                                        'data': self._data})
-        ex.grid(row=row, column=0, rowspan=36, columnspan=7, sticky='NWSE', padx=5, pady=5)
+        self._extended_frame = ExtendedExperimentFrame(self._mw_frame,
+                                                       **{'fig': [self._figure1, self._ax1, self._canvas1],
+                                                          'data': self._data})
+        self._extended_frame.grid(row=row, column=0, rowspan=36, columnspan=7, sticky='NWSE', padx=5, pady=5)
 
     # def _change_layer_callback(self, *args):
     #     tmp = self._select_layer_combobox.get()
@@ -673,6 +749,9 @@ class MainWindow(tk.Frame):
         self._path = self._path if self._path else os.path.dirname(f)
         self._data.experimental_data = f
         self._file_name_label['text'] = os.path.basename(f)
+        self._extended_frame.change_sigma_dc_values()
+        self._extended_frame.start_calculate['state'] = 'normal'
+        self._activate_log_graph_changer()
 
         if len(self._solutions) > 0 or delete_calc:
             # mb.showinfo('Изменен файл эксперимента', 'Изменён файл эксперимента. Прошлые расчеты удалены.')
@@ -778,6 +857,7 @@ class MainWindow(tk.Frame):
 
         self._ax1.semilogx(x, Y, 'r-.', label='ε" мнимая часть диэлектрической пронициаемости', color='red')
         self._ax1.semilogx(x, y, 'r-.', label="ε' действительная часть диэлектрической пронициаемости", color='blue')
+
         self._ax1.set_xlabel("Гц")
         self._ax1.grid(True)
         self._ax1.set_title('Результаты эксперимента по измерению диэлектрической проницаемости')
@@ -885,6 +965,24 @@ class MainWindow(tk.Frame):
         self._init_experimental_data_graphic()
         self._dispersion_file_name_button['command'] = lambda: self._choice_file(False)
         self._clear_graph['state'] = 'disabled'
+
+    def _change_y_log(self, item: plt.Axes, state: bool, canvas: FigureCanvasTkAgg):
+        if state:
+            item.set_yscale('log')
+        else:
+            item.set_yscale('linear')
+        canvas.draw()
+
+    def _change_x_log(self, item: plt.Axes, state: bool, canvas: FigureCanvasTkAgg):
+        if state:
+            item.set_xscale('log')
+        else:
+            item.set_xscale('linear')
+        canvas.draw()
+
+    def _activate_log_graph_changer(self):
+        for val in (self.rb1_x, self.rb1_y, self.rb2_x, self.rb2_y, self.rb3_x, self.rb3_y):
+            val['state'] = 'normal'
 
 
 if __name__ == '__main__':
