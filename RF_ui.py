@@ -577,29 +577,32 @@ class MainWindow(tk.Frame):
         self.rb3_x_value = tk.BooleanVar(self._nb_list3_frame, value=True)
         self.rb3_y_value = tk.BooleanVar(self._nb_list3_frame, value=True)
 
-        self.rb1_x = tk.Checkbutton(self._nb_list1_frame, text='Логарифмическая абциса',
+        x_label = 'Логарифмическая ось абсцисс'
+        y_label = 'Логарифмическая ось ординат'
+
+        self.rb1_x = tk.Checkbutton(self._nb_list1_frame, text=x_label,
                                     variable=self.rb1_x_value, state='disabled',
                                     command=lambda: self._change_x_log(self._ax1, self.rb1_x_value.get(),
                                                                        self._canvas1))
-        self.rb1_y = tk.Checkbutton(self._nb_list1_frame, text='Логарифмическая ордината',
+        self.rb1_y = tk.Checkbutton(self._nb_list1_frame, text=y_label,
                                     variable=self.rb1_y_value, state='disabled',
                                     command=lambda: self._change_y_log(self._ax1, self.rb1_y_value.get(),
                                                                        self._canvas1))
 
-        self.rb2_x = tk.Checkbutton(self._nb_list2_frame, text='Логарифмическая абциса',
+        self.rb2_x = tk.Checkbutton(self._nb_list2_frame, text=x_label,
                                     variable=self.rb2_x_value, state='disabled',
                                     command=lambda: self._change_x_log(self._ax2, self.rb2_x_value.get(),
                                                                        self._canvas2))
-        self.rb2_y = tk.Checkbutton(self._nb_list2_frame, text='Логарифмическая ордината',
+        self.rb2_y = tk.Checkbutton(self._nb_list2_frame, text=y_label,
                                     variable=self.rb2_y_value, state='disabled',
                                     command=lambda: self._change_y_log(self._ax2, self.rb2_y_value.get(),
                                                                        self._canvas2))
 
-        self.rb3_x = tk.Checkbutton(self._nb_list3_frame, text='Логарифмическая абциса',
+        self.rb3_x = tk.Checkbutton(self._nb_list3_frame, text=x_label,
                                     variable=self.rb3_x_value, state='disabled',
                                     command=lambda: self._change_x_log(self._ax3, self.rb3_x_value.get(),
                                                                        self._canvas3))
-        self.rb3_y = tk.Checkbutton(self._nb_list3_frame, text='Логарифмическая ордината',
+        self.rb3_y = tk.Checkbutton(self._nb_list3_frame, text=y_label,
                                     variable=self.rb3_y_value, state='disabled',
                                     command=lambda: self._change_y_log(self._ax3, self.rb3_y_value.get(),
                                                                        self._canvas3))
